@@ -301,3 +301,70 @@ func Test_sortWordsInPage(t *testing.T) {
 		})
 	}
 }
+
+func Test_matchSupplierNameInPageV2(t *testing.T) {
+	type args struct {
+		supplierNameToken []string
+		page              *Page
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantCanMatch bool
+	}{
+		{
+			name: "exact match",
+			args: args{
+				supplierNameToken: []string{"Demo", "Company"},
+				page: &Page{
+					WordMap: map[string][]int{
+						"Demo":    {1, 3},
+						"Company": {2},
+					},
+				},
+			},
+			wantCanMatch: true,
+		},
+		{
+			name: "not match",
+			args: args{
+				supplierNameToken: []string{"Demo", "Company"},
+				page: &Page{
+					WordMap: map[string][]int{
+						"Demo":    {3, 4},
+						"Company": {2},
+					},
+				},
+			},
+			wantCanMatch: false,
+		},
+		{
+			name: "invalid page",
+			args: args{
+				supplierNameToken: []string{"Demo", "Company"},
+				page:              nil,
+			},
+			wantCanMatch: false,
+		},
+		{
+			name: "empty supplier name",
+			args: args{
+				supplierNameToken: []string{},
+				page: &Page{
+					WordMap: map[string][]int{
+						"Demo":    {1, 3},
+						"Company": {2},
+					},
+				},
+			},
+			wantCanMatch: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotCanMatch := matchSupplierNameInPageV2(tt.args.supplierNameToken, tt.args.page); gotCanMatch != tt.wantCanMatch {
+				t.Errorf("matchSupplierNameInPageV2() = %v, want %v", gotCanMatch, tt.wantCanMatch)
+			}
+		})
+	}
+}

@@ -85,6 +85,12 @@ func matchSupplierNameInPage(supplierNameToken []string, page *Page) (canMatch b
 
 // matchSupplierNameInPageV2 - match supplier name in the page
 func matchSupplierNameInPageV2(supplierNameToken []string, page *Page) (canMatch bool) {
+	if page == nil {
+		return false
+	}
+	if len(supplierNameToken) == 0 || len(page.WordMap) == 0 {
+		return false
+	}
 	idxWord := -1
 	for _, token := range supplierNameToken {
 		wordList, ok := page.WordMap[token]

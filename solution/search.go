@@ -13,7 +13,8 @@ type Word struct {
 }
 
 type Page struct {
-	Words []*Word
+	Words   []*Word
+	WordMap map[string][]int
 }
 
 type Supplier struct {
@@ -26,6 +27,18 @@ type Supplier struct {
 func SearchSupplierFromPage(pages []*Page, supplier *Supplier) *Supplier {
 	for _, page := range pages {
 		canMatch := matchSupplierNameInPage(strings.Split(supplier.SupplierName, " "), page)
+		if canMatch {
+			return supplier
+		}
+	}
+	return nil
+}
+
+// SearchSupplierFromPageV2 - find supplier name from a page
+// return nil if the supplier name is not found
+func SearchSupplierFromPageV2(pages []*Page, supplier *Supplier) *Supplier {
+	for _, page := range pages {
+		canMatch := matchSupplierNameInPageV2(strings.Split(supplier.SupplierName, " "), page)
 		if canMatch {
 			return supplier
 		}
@@ -70,6 +83,23 @@ func matchSupplierNameInPage(supplierNameToken []string, page *Page) (canMatch b
 	return idxName == lenName
 }
 
+// matchSupplierNameInPageV2 - match supplier name in the page
+func matchSupplierNameInPageV2(supplierNameToken []string, page *Page) (canMatch bool) {
+	idxWord := -1
+	for _, token := range supplierNameToken {
+		wordList, ok := page.WordMap[token]
+		if !ok {
+			return false
+		}
+		res := sort.SearchInts(wordList, idxWord+1) // use binary search to find the next idx
+		if res == len(wordList) { // not found
+			return false
+		}
+		idxWord = wordList[res] // jump to the next idx
+	}
+	return true
+}
+
 // sortWordsInPage - sort the words by position id and line id
 func sortWordsInPage(page *Page) *Page {
 	if page == nil || len(page.Words) == 0 {
@@ -77,6 +107,21 @@ func sortWordsInPage(page *Page) *Page {
 	}
 	sort.Sort(byPosAndLine(page.Words))
 	return page
+}
+
+func buildWordMapInPage(page *Page) {
+	if page == nil {
+		return
+	}
+	page.WordMap = make(map[string][]int)
+	for idx, w := range page.Words {
+		wordList, ok := page.WordMap[w.Word]
+		if !ok {
+			wordList = make([]int, 0)
+		}
+		wordList = append(wordList, idx)
+		page.WordMap[w.Word] = wordList
+	}
 }
 
 // byPosAndLine - sort words by position id and line id

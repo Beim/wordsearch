@@ -37,6 +37,7 @@ func FindSupplierName(invoiceFilePath, supplierNameFilePath string, workerNum ui
 	pages := groupInvoiceWords(words)
 	for _, page := range pages {
 		sortWordsInPage(page)
+		buildWordMapInPage(page)
 	}
 
 	// preprocess the supplier name file
@@ -74,7 +75,7 @@ func runWorker(pages []*Page, supplierChan chan *Supplier, done chan bool) {
 			done <- true
 			return
 		default:
-			s := SearchSupplierFromPage(pages, supplier)
+			s := SearchSupplierFromPageV2(pages, supplier)
 			if s != nil {
 				log.Printf("supplier name found: %s,%s", s.Id, s.SupplierName)
 				done <- true

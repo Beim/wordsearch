@@ -37,7 +37,7 @@ go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -worker=5
 
 ## Time complexity
 
-- `O(m + n)` where `m` is the number of words in an invoice, and `n` is the number of supplier names.
+- `O(m * n)` where `m` is the number of words in an invoice, and `n` is the number of supplier names.
 
 ## Space complexity
 

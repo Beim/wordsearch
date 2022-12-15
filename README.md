@@ -32,8 +32,8 @@ go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -worker=5
 1. Preprocess the words in invoice.txt, group them by page id.
 2. Preprocess the suppliername.txt, create a channel to load the supplier name, prevent loading all supplier names into memory.
 3. Start worker to match the words in invoice with the supplier names. For this step I provided **two implementations**
-   1. solution1 - `matchSupplierNameInPage` - use two pointer to scan the words in both supplier name and invoice file.
-   2. solution2 - `matchSupplierNameInPageV2` - use binary search to optimize the scan of words in invoice file.
+   1. solution1 - [matchSupplierNameInPage](https://github.com/Beim/wordsearch/blob/de8331f17c3596ac8ac0d058ab1c56762e3ee8a5/solution/search.go#L66) - use two pointer to scan the words in both supplier name and invoice file.
+   2. solution2 - [matchSupplierNameInPageV2](https://github.com/Beim/wordsearch/blob/de8331f17c3596ac8ac0d058ab1c56762e3ee8a5/solution/search.go#L87) - use binary search to optimize the scan of words in invoice file.
 4. If one of the worker can find the supplier name, stop all other workers.
 5. Print out the supplier name.
 

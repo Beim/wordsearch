@@ -368,3 +368,73 @@ func Test_matchSupplierNameInPageV2(t *testing.T) {
 		})
 	}
 }
+
+func Test_matchSupplierNameInPageV3(t *testing.T) {
+	type args struct {
+		supplierNameToken []string
+		page              *Page
+	}
+	tests := []struct {
+		name         string
+		args         args
+		wantCanMatch bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "not match",
+			args: args{
+				supplierNameToken: []string{
+					"Demo", "Company",
+				},
+				page: &Page{
+					WordMapV2: map[string][]*Word{
+						"Demo": {
+							{
+								LineId: 0,
+							},
+						},
+						"Company": {
+							{
+								LineId: 20,
+							},
+						},
+					},
+				},
+			},
+			wantCanMatch: false,
+		},
+		{
+			name: "can match",
+			args: args{
+				supplierNameToken: []string{
+					"Demo", "Company",
+				},
+				page: &Page{
+					WordMapV2: map[string][]*Word{
+						"Demo": {
+							{
+								LineId: 0,
+							},
+							{
+								LineId: 19,
+							},
+						},
+						"Company": {
+							{
+								LineId: 20,
+							},
+						},
+					},
+				},
+			},
+			wantCanMatch: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotCanMatch := matchSupplierNameInPageV3(tt.args.supplierNameToken, tt.args.page, nil); gotCanMatch != tt.wantCanMatch {
+				t.Errorf("matchSupplierNameInPageV3() = %v, want %v", gotCanMatch, tt.wantCanMatch)
+			}
+		})
+	}
+}

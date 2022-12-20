@@ -115,7 +115,7 @@ func FindSupplierNameV2(invoiceFilePath, supplierNameFilePath string, workerNum 
 	pages := groupInvoiceWords(words)
 	for _, page := range pages {
 		sortWordsInPage(page)
-		buildWordMapInPage(page)
+		buildWordMapV2InPage(page)
 	}
 
 	indexMap, supplierNameFile, err := loadSupplierNameFileWithIndex(supplierNameFilePath)

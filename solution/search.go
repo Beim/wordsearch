@@ -13,8 +13,9 @@ type Word struct {
 }
 
 type Page struct {
-	Words   []*Word
-	WordMap map[string][]int
+	Words     []*Word
+	WordMap   map[string][]int
+	WordMapV2 map[string][]*Word
 }
 
 type Supplier struct {
@@ -23,7 +24,7 @@ type Supplier struct {
 }
 
 type SuppliersForPage struct {
-	Page *Page
+	Page      *Page
 	Suppliers []*Supplier
 }
 
@@ -51,11 +52,13 @@ func SearchSupplierFromPageV2(pages []*Page, supplier *Supplier) *Supplier {
 	return nil
 }
 
+// SearchSupplierFromPageV2 - find supplier name from a page
+// return nil if the supplier name is not found
 func SearchSupplierFromPageV3(potentialSuppliersForPage []*SuppliersForPage) (supplier *Supplier) {
 	for _, suppliersForPage := range potentialSuppliersForPage {
 		for _, supplier := range suppliersForPage.Suppliers {
 			page := suppliersForPage.Page
-			canMatch := matchSupplierNameInPageV2(strings.Split(supplier.SupplierName, " "), page)
+			canMatch := matchSupplierNameInPageV3(strings.Split(supplier.SupplierName, " "), page, nil)
 			if canMatch {
 				return supplier
 			}
@@ -116,12 +119,50 @@ func matchSupplierNameInPageV2(supplierNameToken []string, page *Page) (canMatch
 			return false
 		}
 		res := sort.SearchInts(wordList, idxWord+1) // use binary search to find the next idx
-		if res == len(wordList) { // not found
+		if res == len(wordList) {                   // not found
 			return false
 		}
 		idxWord = wordList[res] // jump to the next idx
 	}
 	return true
+}
+
+// matchSupplierNameInPageV3 - match supplier name in the page
+func matchSupplierNameInPageV3(supplierNameToken []string, page *Page, startWord *Word) (canMatch bool) {
+	if page == nil {
+		return false
+	}
+	if len(supplierNameToken) == 0 {
+		return true
+	}
+	if len(page.WordMapV2) == 0 {
+		return false
+	}
+
+	token := supplierNameToken[0]
+	wordList, ok := page.WordMapV2[token]
+	if !ok {
+		return false
+	}
+	// use binary search to find the next idx
+	res := sort.Search(len(wordList), func(i int) bool {
+		wi := wordList[i]
+		wj := startWord
+		return startWord == nil || wi.LineId > wj.LineId || wi.LineId == wj.LineId && wi.PosId > wj.PosId
+	})
+	if res == len(wordList) { // not found
+		return false
+	}
+
+	for i := res; i < len(wordList); i++ {
+		nextStartWord := wordList[i]
+		if startWord == nil || startWord.LineId+1 >= nextStartWord.LineId {
+			if matchSupplierNameInPageV3(supplierNameToken[1:], page, nextStartWord) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // sortWordsInPage - sort the words by position id and line id
@@ -145,6 +186,21 @@ func buildWordMapInPage(page *Page) {
 		}
 		wordList = append(wordList, idx)
 		page.WordMap[w.Word] = wordList
+	}
+}
+
+func buildWordMapV2InPage(page *Page) {
+	if page == nil {
+		return
+	}
+	page.WordMapV2 = make(map[string][]*Word)
+	for _, w := range page.Words {
+		wordList, ok := page.WordMapV2[w.Word]
+		if !ok {
+			wordList = make([]*Word, 0)
+		}
+		wordList = append(wordList, w)
+		page.WordMapV2[w.Word] = wordList
 	}
 }
 

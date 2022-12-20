@@ -7,9 +7,17 @@
 # Run
 
 ```bash
+# search without index
 go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -worker=5
+
+# build index
+go run ./solution -supplier=suppliernames.txt -cmd=index
+# search with index
+go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -cmd=searchv2
+
 # expected result
 # supplier name found: 3153303,Demo Company
+
 ```
 
 # Requirement
@@ -34,6 +42,7 @@ go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -worker=5
 3. Start worker to match the words in invoice with the supplier names. For this step I provided **two implementations**
    1. solution1 - [matchSupplierNameInPage](https://github.com/Beim/wordsearch/blob/de8331f17c3596ac8ac0d058ab1c56762e3ee8a5/solution/search.go#L66) - use two pointer to scan the words in both supplier name and invoice file.
    2. solution2 - [matchSupplierNameInPageV2](https://github.com/Beim/wordsearch/blob/de8331f17c3596ac8ac0d058ab1c56762e3ee8a5/solution/search.go#L87) - use binary search to optimize the scan of words in invoice file.
+   2. solution3 - [FindSupplierNameV2](https://github.com/Beim/wordsearch/blob/f50b466b433d7b599ea36a68d01f39ebb8f5a7cc/solution/main.go#L105) - make use of index to filter the potential supplier names that has first word existing in invoice file.
 4. If one of the worker can find the supplier name, stop all other workers.
 5. Print out the supplier name.
 
@@ -41,7 +50,10 @@ go run ./solution -invoice=invoice.txt -supplier=suppliernames.txt -worker=5
 
 - for solution1 - `O(m * n)` where `m` is the number of words in an invoice, and `n` is the number of supplier names.
 - for solution2 -  `O(m * p)` where `p` is the number of pages in an invoice, and `m` is the number of supplier names.
+- for solution3 -  `O(m * p)` where `p` is the number of pages in an invoice, and `m` is the number of potential supplier names.
+
 
 ## Space complexity
 
-- `O(m)` where `m` is the number of words in an invoice.
+- for solution1 and solution2 - `O(m)` where `m` is the number of words in an invoice.
+- for solution3 - `O(m+n)` where `m` is the number of words in an invoice, and `n` is the number of potential supplier names.

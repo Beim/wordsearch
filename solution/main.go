@@ -2,24 +2,197 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
+)
+
+const (
+	CMD_SEARCH    = "search"
+	CMD_INDEX     = "index"
+	CMD_SEARCH_V2 = "searchv2"
 )
 
 func main() {
 	invoiceFilePath := flag.String("invoice", "invoice.txt", "words of an invoice")
 	supplierNameFilePath := flag.String("supplier", "suppliernames.txt", "a list of supplier names")
+	cmd := flag.String("cmd", CMD_SEARCH, "run command search,index")
 	workerNum := flag.Uint64("worker", 5, "number of workers")
 	flag.Parse()
 
-	if err := FindSupplierName(*invoiceFilePath, *supplierNameFilePath, *workerNum); err != nil {
-		log.Fatal(err)
+	if *cmd == CMD_SEARCH {
+		if err := FindSupplierName(*invoiceFilePath, *supplierNameFilePath, *workerNum); err != nil {
+			log.Fatal(err)
+		}
+	} else if *cmd == CMD_INDEX {
+		if err := BuildIndex(*supplierNameFilePath); err != nil {
+			log.Fatal(err)
+		}
+	} else if *cmd == CMD_SEARCH_V2 {
+		if err := FindSupplierNameV2(*invoiceFilePath, *supplierNameFilePath, *workerNum); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Fatal("invalid cmd")
 	}
+
+}
+
+func BuildIndex(supplierNameFilePath string) (err error) {
+	supplierChan, err := loadSupplierNameFile(supplierNameFilePath)
+	if err != nil {
+		return err
+	}
+
+	supplierMap := map[string][]*Supplier{}
+	for supplier := range supplierChan {
+		nameToken := strings.Split(supplier.SupplierName, " ")
+		if len(nameToken) < 1 {
+			log.Fatal("invalid supplier name")
+		}
+		firstName := nameToken[0]
+		suppliers, ok := supplierMap[firstName]
+		if !ok {
+			suppliers = make([]*Supplier, 0)
+		}
+		suppliers = append(suppliers, supplier)
+		supplierMap[firstName] = suppliers
+	}
+
+	indexMap := map[string]uint64{}
+	f, err := os.Create(fmt.Sprintf("%s.indexed", supplierNameFilePath))
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	currentIdx := uint64(0)
+	for firstName, suppliers := range supplierMap {
+		var buf bytes.Buffer
+		for _, supplier := range suppliers {
+			_, err := buf.WriteString(fmt.Sprintf("%s,%s\n", supplier.Id, supplier.SupplierName))
+			if err != nil {
+				return err
+			}
+		}
+		n, err := f.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+		indexMap[firstName] = currentIdx
+		currentIdx += uint64(n)
+	}
+	idxf, err := os.Create(fmt.Sprintf("%s.idx", supplierNameFilePath))
+	defer idxf.Close()
+	if err != nil {
+		return err
+	}
+	indexJson, err := json.Marshal(indexMap)
+	if err != nil {
+		return err
+	}
+	_, err = idxf.Write(indexJson)
+	return
+}
+
+func FindSupplierNameV2(invoiceFilePath, supplierNameFilePath string, workerNum uint64) (err error) {
+	if workerNum == 0 {
+		return fmt.Errorf("invalid worker num")
+	}
+
+	// preprocess the invoice file
+	words, err := loadInvoiceFile(invoiceFilePath)
+	if err != nil {
+		return err
+	}
+	pages := groupInvoiceWords(words)
+	for _, page := range pages {
+		sortWordsInPage(page)
+		buildWordMapInPage(page)
+	}
+
+	indexMap, supplierNameFile, err := loadSupplierNameFileWithIndex(supplierNameFilePath)
+	if err != nil {
+		return
+	}
+	potentialSuppliersForPage, err := filterPotentialSuppliersForPage(pages, indexMap, supplierNameFile)
+	if err != nil {
+		return err
+	}
+
+	supplier := SearchSupplierFromPageV3(potentialSuppliersForPage)
+	if supplier != nil {
+		log.Printf("supplier name found: %s,%s", supplier.Id, supplier.SupplierName)
+	} else {
+		log.Println("supplier name not found")
+	}
+
+	return nil
+}
+
+func filterPotentialSuppliersForPage(pages []*Page, indexMap map[string]uint64, supplierNameFile *os.File) (suppliersForPage []*SuppliersForPage, err error) {
+	suppliersForPage = make([]*SuppliersForPage, 0)
+	for _, page := range pages {
+		suppliers := make([]*Supplier, 0)
+		for _, word := range page.Words {
+			idx, ok := indexMap[word.Word]
+			if !ok {
+				continue
+			}
+			_, err = supplierNameFile.Seek(int64(idx), 0)
+			if err != nil {
+				return
+			}
+			reg := regexp.MustCompile(`(\d+),(.+)`)
+			scanner := bufio.NewScanner(supplierNameFile)
+			for scanner.Scan() {
+				line := scanner.Text()
+				match := reg.FindStringSubmatch(line)
+				if len(match) != 3 {
+					err = fmt.Errorf("invalid supplier name text")
+					return
+				}
+				id := match[1]
+				supplierName := match[2]
+				suppliers = append(suppliers, &Supplier{
+					Id:           id,
+					SupplierName: supplierName,
+				})
+				break
+			}
+		}
+		if len(suppliers) > 0 {
+			suppliersForPage = append(suppliersForPage, &SuppliersForPage{
+				Page:      page,
+				Suppliers: suppliers,
+			})
+		}
+	}
+	return
+}
+
+func loadSupplierNameFileWithIndex(supplierNameFilePath string) (indexMap map[string]uint64, supplierNameFile *os.File, err error) {
+	idxf, err := os.Open(fmt.Sprintf("%s.idx", supplierNameFilePath))
+	if err != nil {
+		return
+	}
+	idxJson, err := ioutil.ReadAll(idxf)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(idxJson, &indexMap)
+	if err != nil {
+		return
+	}
+	supplierNameFile, err = os.Open(fmt.Sprintf("%s.indexed", supplierNameFilePath))
+	return
 }
 
 // FindSupplierName - find the supplier name from input files

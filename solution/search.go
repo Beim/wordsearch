@@ -22,6 +22,11 @@ type Supplier struct {
 	Id           string
 }
 
+type SuppliersForPage struct {
+	Page *Page
+	Suppliers []*Supplier
+}
+
 // SearchSupplierFromPage - find supplier name from a page
 // return nil if the supplier name is not found
 func SearchSupplierFromPage(pages []*Page, supplier *Supplier) *Supplier {
@@ -41,6 +46,19 @@ func SearchSupplierFromPageV2(pages []*Page, supplier *Supplier) *Supplier {
 		canMatch := matchSupplierNameInPageV2(strings.Split(supplier.SupplierName, " "), page)
 		if canMatch {
 			return supplier
+		}
+	}
+	return nil
+}
+
+func SearchSupplierFromPageV3(potentialSuppliersForPage []*SuppliersForPage) (supplier *Supplier) {
+	for _, suppliersForPage := range potentialSuppliersForPage {
+		for _, supplier := range suppliersForPage.Suppliers {
+			page := suppliersForPage.Page
+			canMatch := matchSupplierNameInPageV2(strings.Split(supplier.SupplierName, " "), page)
+			if canMatch {
+				return supplier
+			}
 		}
 	}
 	return nil
@@ -89,7 +107,7 @@ func matchSupplierNameInPageV2(supplierNameToken []string, page *Page) (canMatch
 		return false
 	}
 	if len(supplierNameToken) == 0 || len(page.WordMap) == 0 {
-		return false
+		return
 	}
 	idxWord := -1
 	for _, token := range supplierNameToken {

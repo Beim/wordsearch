@@ -161,11 +161,14 @@ func filterPotentialSuppliersForPage(pages []*Page, indexMap map[string]uint64, 
 				}
 				id := match[1]
 				supplierName := match[2]
+				tempWords := strings.Split(supplierName, " ")
+				if len(tempWords) < 1 || tempWords[0] != word.Word {
+					break
+				}
 				suppliers = append(suppliers, &Supplier{
 					Id:           id,
 					SupplierName: supplierName,
 				})
-				break
 			}
 		}
 		if len(suppliers) > 0 {
